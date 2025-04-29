@@ -1,8 +1,9 @@
 import { Component } from '@angular/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Haptics } from '@capacitor/haptics';
-import { IonicModule } from '@ionic/angular';
+import { IonicModule, Platform } from '@ionic/angular'; 
 import { CommonModule } from '@angular/common';
+import { App } from '@capacitor/app';
 
 @Component({
   selector: 'app-home',
@@ -17,11 +18,11 @@ export class HomePage {
   private timer: any;
   private isPomodoro: boolean = true;
 
-  constructor() {
+  constructor(private platform: Platform) { 
     this.initializeClock();
+    this.handleBackButton(); 
   }
 
-  
   private initializeClock(): void {
     this.updateCurrentTime();
     setInterval(() => this.updateCurrentTime(), 1000);
@@ -32,9 +33,8 @@ export class HomePage {
     this.currentTime = now.toLocaleTimeString();
   }
 
- 
   startPomodoro(): void {
-    const duration = this.isPomodoro ? 25 * 60 : 5 * 60; 
+    const duration = this.isPomodoro ? 25 * 60 : 5 * 60;
     this.startCountdown(duration);
   }
 
@@ -62,7 +62,7 @@ export class HomePage {
 
   private handleTimerEnd(): void {
     this.notifyUser();
-    this.isPomodoro = !this.isPomodoro; 
+    this.isPomodoro = !this.isPomodoro;
     this.startPomodoro();
   }
 
@@ -70,37 +70,32 @@ export class HomePage {
     return num < 10 ? '0' + num : num.toString();
   }
 
-
   async notifyUser(): Promise<void> {
     try {
-      
       const hasPermission = await LocalNotifications.requestPermissions();
       if (hasPermission.display === 'granted') {
         const defaultMessage = this.isPomodoro
-        ? 'Pomodoro session ended! Time for a break.'
-        : 'Break ended! Time to work.';
-      const message = window.prompt('Enter your notification message:', defaultMessage) || defaultMessage;
+          ? 'Pomodoro session ended! Time for a break.'
+          : 'Break ended! Time to work.';
+        const message = window.prompt('Enter your notification message:', defaultMessage) || defaultMessage;
 
         await Haptics.vibrate({ duration: 1000 });
-  
-        
+
         console.log('Scheduling notification with message:', message);
-  
-    
+
         await LocalNotifications.schedule({
           notifications: [
             {
               title: 'Pomodoro Timer',
               body: message,
               id: new Date().getTime(),
-              schedule: { at: new Date(new Date().getTime() + 1000) }, 
-              sound: 'default', 
-              extra: { isPomodoro: this.isPomodoro }, 
+              schedule: { at: new Date(new Date().getTime() + 1000) },
+              sound: 'default',
+              extra: { isPomodoro: this.isPomodoro },
             },
           ],
         });
-  
-       
+
         console.log('Notification scheduled successfully.');
       } else {
         console.error('Notification permissions not granted.');
@@ -108,5 +103,13 @@ export class HomePage {
     } catch (error) {
       console.error('Error scheduling notification:', error);
     }
+  }
+
+  
+  private handleBackButton(): void {
+    this.platform.backButton.subscribeWithPriority(10, () => {
+      console.log('Back button pressed. Exiting app...');
+      App.exitApp(); 
+    });
   }
 }
