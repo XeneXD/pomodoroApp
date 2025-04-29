@@ -74,10 +74,10 @@ export class HomePage {
     try {
       const hasPermission = await LocalNotifications.requestPermissions();
       if (hasPermission.display === 'granted') {
-        const defaultMessage = this.isPomodoro
-          ? 'Pomodoro session ended! Time for a break.'
-          : 'Break ended! Time to work.';
-        const message = window.prompt('Enter your notification message:', defaultMessage) || defaultMessage;
+        const message = this.isPomodoro
+        ? 'Pomodoro session ended! Time for a break.'
+        : 'Break ended! Time to work.';
+
 
         await Haptics.vibrate({ duration: 1000 });
 
