@@ -3,6 +3,11 @@
     <ion-title>
       Pomodoro Timer
     </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="setPreferences()">
+        <ion-icon name="settings-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -14,16 +19,12 @@
   </ion-header>
 
   <div id="container">
-    <div id="clock">
-      <strong>Current Time:</strong>
-      <p>{{ currentTime }}</p>
-    </div>
-
     <div id="timer">
       <strong>Timer:</strong>
       <p>{{ timerDisplay }}</p>
     </div>
 
     <ion-button expand="block" (click)="startPomodoro()">Start Pomodoro Cycle</ion-button>
+    <ion-button expand="block" (click)="resetPomodoro()">Reset Pomodoro Cycle</ion-button>
   </div>
 </ion-content>
