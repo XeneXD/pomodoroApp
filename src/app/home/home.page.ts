@@ -17,8 +17,8 @@ export class HomePage {
   timerDisplay: string = '00:00';
   private timer: any;
   private isPomodoro: boolean = true;
-  private pomodoroDuration: number = 25 * 60; 
-  private breakDuration: number = 5 * 60; 
+  private pomodoroDuration: number = 25 * 60;
+  private breakDuration: number = 5 * 60;
 
   constructor(
     private platform: Platform,
@@ -26,6 +26,24 @@ export class HomePage {
   ) {
     this.initializeClock();
     this.handleBackButton();
+    this.setupNotifications();
+  }
+
+  private async setupNotifications() {
+    const permResult = await LocalNotifications.requestPermissions();
+    if (permResult.display === 'granted') {
+      await LocalNotifications.createChannel({
+        id: 'pomodoro-notifications',
+        name: 'Pomodoro Timer',
+        description: 'Pomodoro Timer Notifications',
+        importance: 5,
+        visibility: 1,
+        sound: 'default',
+        vibration: true,
+        lights: true,
+        lightColor: '#FF0000'
+      });
+    }
   }
 
   private initializeClock(): void {
@@ -44,9 +62,8 @@ export class HomePage {
   }
 
   resetPomodoro(): void {
-    clearInterval(this.timer); 
-    this.timerDisplay = '00:00'; 
-    console.log('Pomodoro cycle reset.');
+    clearInterval(this.timer);
+    this.timerDisplay = '00:00';
   }
 
   private startCountdown(duration: number): void {
@@ -55,12 +72,10 @@ export class HomePage {
 
     this.timer = setInterval(() => {
       this.updateTimerDisplay(timeLeft);
-
       if (timeLeft <= 0) {
         clearInterval(this.timer);
         this.handleTimerEnd();
       }
-
       timeLeft--;
     }, 1000);
   }
@@ -72,9 +87,9 @@ export class HomePage {
   }
 
   private async handleTimerEnd(): Promise<void> {
-    await this.notifyEnd(); 
-    this.isPomodoro = !this.isPomodoro; 
-    this.startPomodoro(); 
+    await this.notifyEnd();
+    this.isPomodoro = !this.isPomodoro;
+    this.startPomodoro();
   }
 
   private pad(num: number): string {
@@ -84,8 +99,8 @@ export class HomePage {
   async notifyEnd(): Promise<void> {
     try {
       const message = this.isPomodoro
-        ? 'Pomodoro session ended! Time for a break.'
-        : 'Break ended! Time to work.';
+        ? 'Break ended! Time to work.'
+        : 'Pomodoro session ended! Time for a break.';
 
       await Haptics.vibrate({ duration: 1000 });
 
@@ -94,57 +109,100 @@ export class HomePage {
           {
             title: 'Pomodoro Timer',
             body: message,
-            id: new Date().getTime(),
-            schedule: { at: new Date(new Date().getTime() + 1000) },
+            id: Math.floor(Math.random() * 100000),
+            schedule: { at: new Date() },
             sound: 'default',
-          },
-        ],
+            channelId: 'pomodoro-notifications',
+            smallIcon: 'ic_notification',
+            largeIcon: 'ic_launcher',
+            extra: {
+              type: this.isPomodoro ? 'break' : 'pomodoro'
+            }
+          }
+        ]
       });
 
-      console.log('End notification scheduled:', message);
+      const alert = await this.alertController.create({
+        header: 'Timer Complete',
+        message: message,
+        buttons: ['OK']
+      });
+      await alert.present();
     } catch (error) {
-      console.error('Error scheduling end notification:', error);
+      console.error('Error in notifyEnd:', error);
     }
   }
 
   async setPreferences(): Promise<void> {
+    const pomodoroMinutes = Math.floor(this.pomodoroDuration / 60);
+    const pomodoroSeconds = this.pomodoroDuration % 60;
+    const breakMinutes = Math.floor(this.breakDuration / 60);
+    const breakSeconds = this.breakDuration % 60;
+  
     const alert = await this.alertController.create({
       header: 'Set Timer Preferences',
-      message: `Start: ${this.pomodoroDuration / 60} minutes\nBreak: ${this.breakDuration / 60} minutes`,
+      message: `Current Settings:\nStart: ${pomodoroMinutes}m ${pomodoroSeconds}s\nBreak: ${breakMinutes}m ${breakSeconds}s`,
       inputs: [
         {
-          name: 'pomodoro',
+          name: 'pomodoroMinutes',
           type: 'number',
-          placeholder: 'Pomodoro Duration (minutes)',
-          value: this.pomodoroDuration / 60,
+          placeholder: 'Pomodoro Minutes',
+          value: pomodoroMinutes,
+          min: 0,
+          max: 59
         },
         {
-          name: 'break',
+          name: 'pomodoroSeconds',
           type: 'number',
-          placeholder: 'Break Duration (minutes)',
-          value: this.breakDuration / 60,
+          placeholder: 'Pomodoro Seconds',
+          value: pomodoroSeconds,
+          min: 0,
+          max: 59
         },
+        {
+          name: 'breakMinutes',
+          type: 'number',
+          placeholder: 'Break Minutes',
+          value: breakMinutes,
+          min: 0,
+          max: 59
+        },
+        {
+          name: 'breakSeconds',
+          type: 'number',
+          placeholder: 'Break Seconds',
+          value: breakSeconds,
+          min: 0,
+          max: 59
+        }
       ],
       buttons: [
         {
           text: 'Cancel',
-          role: 'cancel',
+          role: 'cancel'
         },
         {
           text: 'Save',
           handler: (data) => {
-            this.pomodoroDuration = parseInt(data.pomodoro) * 60 || this.pomodoroDuration;
-            this.breakDuration = parseInt(data.break) * 60 || this.breakDuration;
-            console.log('Preferences updated:', this.pomodoroDuration, this.breakDuration);
-          },
-        },
-      ],
+            const pomMin = parseInt(data.pomodoroMinutes) || 0;
+            const pomSec = parseInt(data.pomodoroSeconds) || 0;
+            const brkMin = parseInt(data.breakMinutes) || 0;
+            const brkSec = parseInt(data.breakSeconds) || 0;
+  
+            this.pomodoroDuration = (pomMin * 60) + pomSec;
+            this.breakDuration = (brkMin * 60) + brkSec;
+  
+            if (this.pomodoroDuration <= 0) this.pomodoroDuration = 60;
+            if (this.breakDuration <= 0) this.breakDuration = 30;
+          }
+        }
+      ]
     });
     await alert.present();
   }
+
   private handleBackButton(): void {
     this.platform.backButton.subscribeWithPriority(10, () => {
-      console.log('Back button pressed. Exiting app...');
       App.exitApp();
     });
   }
